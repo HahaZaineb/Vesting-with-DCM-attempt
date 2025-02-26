@@ -12,7 +12,7 @@ const VESTING_INFO_KEY = 'vestingInfo';
 // Export task function
 export { processTask } from '../internals';
 
-export class VestingSchedule implements Serializable {
+class VestingSchedule implements Serializable {
   constructor(
     public beneficiary: Address = new Address(""),
     public token: Address = new Address(""),
@@ -35,7 +35,7 @@ export class VestingSchedule implements Serializable {
   }
 
   deserialize(data: StaticArray<u8>, offset: u64 = 0): Result<i32> {
-    const args = new Args(data, offset);
+    const args = new Args(data, i32(offset));
 
     this.beneficiary = args.nextSerializable<Address>().expect("Failed to deserialize beneficiary.");
     this.token = args.nextSerializable<Address>().expect("Failed to deserialize token.");
@@ -45,7 +45,7 @@ export class VestingSchedule implements Serializable {
     const releaseScheduleStrings = args.nextStringArray().expect("Failed to deserialize releaseSchedule.");
     const releaseScheduleLength = args.nextU32().expect("Failed to deserialize releaseSchedule length.");
     this.releaseSchedule = new Array<u64>(releaseScheduleLength);
-    for (let i = 0; i < releaseScheduleLength; i++) {
+    for (let i = 0; i < i32(releaseScheduleLength); i++) {
       this.releaseSchedule[i] = args.nextU64().expect(`Failed to deserialize releaseSchedule at index ${i}.`);
     }
 
@@ -74,7 +74,7 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
   const startPeriod = Context.currentPeriod() + args.nextU64().expect('Missing lock period');
 
   const callId = registerCall(releaseInterval); 
-  const releaseSchedule = [releasePercentage, startPeriod, u64(callId)];
+  const releaseSchedule = [releasePercentage, startPeriod, u64(parseInt(callId))];
   
 
   const vestingSchedule = new VestingSchedule(
