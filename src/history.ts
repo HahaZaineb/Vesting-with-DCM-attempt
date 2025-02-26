@@ -4,7 +4,7 @@ import { CONTRACT_ADDR } from './utils';
 
 const rpcUrl = 'https://labnet.massa.net/api/v2:33035';
 const account = await Account.fromEnv();
-const provider = Web3Provider.fromRPCUrl(rpcUrl, account);
+const provider = Web3Provider.buildnet(account);
 
 const keyFilter = 'hist';
 const historyKeys = await provider.getStorageKeys(CONTRACT_ADDR, keyFilter);

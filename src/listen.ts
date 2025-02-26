@@ -9,7 +9,7 @@ import { CONTRACT_ADDR } from './utils';
 
 const account = await Account.fromEnv();
 const rpcUrl = 'https://labnet.massa.net/api/v2:33035';
-const provider = Web3Provider.fromRPCUrl(rpcUrl, account);
+const provider = Web3Provider.buildnet(account);
 
 let stop = false;
 

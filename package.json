@@ -4,6 +4,7 @@
     "description": "",
     "main": "index.js",
     "scripts": {
+        "events": "tsx src/events.ts",
         "test": "asp --summary",
         "build": "massa-as-compile",
         "clean": "rimraf build",

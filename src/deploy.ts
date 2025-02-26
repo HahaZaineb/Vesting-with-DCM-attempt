@@ -10,7 +10,7 @@ import { getScByteCode } from './utils';
 
 const rpcUrl = 'https://labnet.massa.net/api/v2:33035';
 const account = await Account.fromEnv();
-const provider = Web3Provider.fromRPCUrl(rpcUrl, account);
+const provider = Web3Provider.buildnet(account);
 
 console.log('Deploying contract...');
 
@@ -22,6 +22,8 @@ const minutes = 1;
 const periods = Math.round((minutes * 60) / periodInSeconds);
 
 const constructorArgs = new Args().addU64(BigInt(periods));
+
+
 
 const contract = await SmartContract.deploy(
   provider,
