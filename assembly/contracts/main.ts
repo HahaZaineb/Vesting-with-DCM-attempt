@@ -124,3 +124,43 @@ export function stop(_: StaticArray<u8>): void {
   assert(Storage.has(NEXT_CALL_ID_KEY), 'No deferred call to stop');
   cancelCall(Storage.get(NEXT_CALL_ID_KEY));
 }
+
+
+export function getVestingSchedule(_: StaticArray<u8>): StaticArray<u8> {
+  const data = Storage.get(VESTING_INFO_KEY);
+  assert(data.length > 0, 'No vesting schedule found');
+
+  return stringToBytes(data);  
+}
+
+export function getTotalVested(_: StaticArray<u8>): u64 {
+  const data = Storage.get(VESTING_INFO_KEY);
+  assert(data.length > 0, 'No vesting schedule found');
+  
+  const vestingSchedule = new VestingSchedule();
+  vestingSchedule.deserialize(stringToBytes(data));
+
+  return vestingSchedule.amountClaimed;  
+}
+
+export function getLockedAmount(_: StaticArray<u8>): u64 {
+  const data = Storage.get(VESTING_INFO_KEY);
+  assert(data.length > 0, 'No vesting schedule found');
+
+  const vestingSchedule = new VestingSchedule();
+  vestingSchedule.deserialize(stringToBytes(data));
+
+  return vestingSchedule.totalAmount - vestingSchedule.amountClaimed;  
+}
+
+
+export function getReleaseSchedule(_: StaticArray<u8>): StaticArray<u64> {
+  const data = Storage.get(VESTING_INFO_KEY);
+  assert(data.length > 0, 'No vesting schedule found');
+
+  const vestingSchedule = new VestingSchedule();
+  vestingSchedule.deserialize(stringToBytes(data));
+
+  // Convert Array<u64> to StaticArray<u64>
+  return StaticArray.fromArray(vestingSchedule.releaseSchedule);
+}
