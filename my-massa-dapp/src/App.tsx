@@ -1,13 +1,43 @@
-import { JsonRPCClient, Args, SmartContract, JsonRpcProvider, Account } from "@massalabs/massa-web3";
+import { JsonRPCClient, Args, SmartContract, JsonRpcProvider, Account, } from "@massalabs/massa-web3";
 import { useEffect, useState } from "react";
 import { MassaLogo, Button, Input } from "@massalabs/react-ui-kit";
 import "./App.css";
-import { getWallets } from "@massalabs/wallet-provider";
-//import { Wallet } from "alchemy-sdk";
 
-const sc_addr = "AS1UGCZD9dQvjnMfwtYC8TBo1KTEhruQx3Xv5WQnNhKRt7wegZwj"; // Update with your deployed contract address
-//const account = await Account.fromEnv();
-//const provider = JsonRpcProvider.buildnet(account);
+
+declare global {
+  interface Window {
+    massa?: any;
+  }
+}
+import { getWallets } from "@massalabs/wallet-provider";
+
+const sc_addr = "AS1UGCZD9dQvjnMfwtYC8TBo1KTEhruQx3Xv5WQnNhKRt7wegZwj";
+console.log("window.massa:", window.massa);
+function checkWallet() {
+  let attempts = 0;
+const intervalId = setInterval(() => {
+  //setTimeout(() => {
+  if (!window.massa) {
+    console.error("Bearby Wallet is NOT injected! Check if the extension is installed.", window.massa);
+    clearInterval(intervalId);
+    return true;
+  }
+  attempts++;
+  console.log("Checking for Bearby Wallet... Attempt", attempts);
+
+  if (attempts > 5) {
+      clearInterval(intervalId);  // Stop after 5 attempts
+      console.error("Bearby Wallet is not injected! Please install the extension.");
+      return false;
+    }
+  }, 1000);
+return false;
+}
+
+if (!checkWallet()) {
+  console.error("Wallet check failed.");
+}
+
 async function walletExample() {
   const wallets = await getWallets();
   if (wallets.length === 0) {
@@ -21,6 +51,7 @@ async function walletExample() {
     console.log("Failed to connect to wallet");
     return null;
   }
+  
   // Listen for account changes
   wallet.listenAccountChanges((address) => {
     console.log("Account changed:", address);
@@ -49,36 +80,65 @@ function App() {
     getReleaseSchedule();
     
   }, []);
-  async function createVestingSchedule() {
-    console.log("Create Vesting Schedule clicked"); 
-    if (!client) return;
-    const account = await Account.fromEnv();
-    const provider = JsonRpcProvider.buildnet(account);
-
-       
-    const contract = new SmartContract(provider, sc_addr);
-    const mockTokenAddress = "0x1234567890abcdef1234567890abcdef12345678"; // Mock token address
-
-    const args = new Args()
-      .addString(mockTokenAddress)
-      .addU64(BigInt(amount))
-      .addU64(BigInt(lockPeriod))
-      .addU64(BigInt(releaseInterval))
-      .addU64(BigInt(releasePercentage));
-
-     
-
+  async function connectWallet() {
+    if (!window.massa) {
+      console.error("Bearby Wallet is NOT injected!");
+      return;
+    }
+  
     try {
-      const response = await contract.call('createVestingSchedule', args.addString('data'), { maxGas: BigInt(100000) });
-      console.log("Vesting scheduled:", response);
-      getVestingInfo();
-      getTotalVested(); 
-      getLockedAmount(); 
-      getReleaseSchedule(); 
+      const account = await window.massa.connect();
+      console.log("Connected to Bearby Wallet:", account);
+      return account;
     } catch (error) {
-      console.error("Error scheduling vesting:", error);
+      console.error("Failed to connect to Bearby Wallet:", error);
     }
   }
+  
+  async function createVestingSchedule() {
+    console.log("Create Vesting Schedule clicked");
+    const connectedAccount = await connectWallet();
+    if (!connectedAccount) {
+      console.error("Failed to connect to Bearby Wallet");
+      return;
+    }
+    // Check if Bearby Wallet is injected
+    if (!window.massa) {
+      console.error("Bearby Wallet is NOT injected! Please install the wallet extension.");
+      return;
+    }
+  
+    // Check if Bearby Wallet is connected
+    if (!window.massa.isConnected) {
+      console.error("Bearby Wallet is not connected.");
+      return;
+    }
+  
+    try {
+      const provider = new JsonRpcProvider(window.massa, await window.massa.getProviderAccount());
+  
+      const contract = new SmartContract(provider, sc_addr);
+      const mockTokenAddress = "0x1234567890abcdef1234567890abcdef12345678";
+      const args = new Args()
+        .addString(mockTokenAddress)  
+        .addU64(BigInt(amount))
+        .addU64(BigInt(lockPeriod))
+        .addU64(BigInt(releaseInterval))
+        .addU64(BigInt(releasePercentage));
+  
+      const response = await contract.call("createVestingSchedule", args, {
+        maxGas: BigInt(2_000_000),
+      });
+  
+      console.log("Transaction response:", response);
+      getVestingInfo(); 
+    } catch (error) {
+      console.error("Error calling contract:", error);
+    }
+  }
+  
+
+  
 
   async function getVestingInfo() {
     if (client) {
