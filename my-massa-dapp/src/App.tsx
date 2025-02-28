@@ -1,4 +1,4 @@
-import { JsonRPCClient, Args, SmartContract, JsonRpcProvider, Account, } from "@massalabs/massa-web3";
+import { JsonRPCClient, Args, SmartContract, JsonRpcProvider, Account } from "@massalabs/massa-web3";
 import { useEffect, useState } from "react";
 import { MassaLogo, Button, Input, ConnectMassaWallet } from "@massalabs/react-ui-kit";
 import "./App.css";
