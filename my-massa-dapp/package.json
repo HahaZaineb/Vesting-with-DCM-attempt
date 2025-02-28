@@ -13,6 +13,7 @@
     "@massalabs/massa-web3": "^5.1.1",
     "@massalabs/react-ui-kit": "^0.1.1-dev.20241030100406",
     "@massalabs/wallet-provider": "^3.1.1",
+    "dotenv": "^16.4.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

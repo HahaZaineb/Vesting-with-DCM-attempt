@@ -1,68 +1,17 @@
 import { JsonRPCClient, Args, SmartContract, JsonRpcProvider, Account, } from "@massalabs/massa-web3";
 import { useEffect, useState } from "react";
-import { MassaLogo, Button, Input } from "@massalabs/react-ui-kit";
+import { MassaLogo, Button, Input, ConnectMassaWallet } from "@massalabs/react-ui-kit";
 import "./App.css";
-
-
-declare global {
-  interface Window {
-    massa?: any;
-  }
-}
-import { getWallets } from "@massalabs/wallet-provider";
+import "@massalabs/react-ui-kit/src/global.css";
+// import 'dotenv/config';
 
 const sc_addr = "AS1UGCZD9dQvjnMfwtYC8TBo1KTEhruQx3Xv5WQnNhKRt7wegZwj";
-console.log("window.massa:", window.massa);
-function checkWallet() {
-  let attempts = 0;
-const intervalId = setInterval(() => {
-  //setTimeout(() => {
-  if (!window.massa) {
-    console.error("Bearby Wallet is NOT injected! Check if the extension is installed.", window.massa);
-    clearInterval(intervalId);
-    return true;
-  }
-  attempts++;
-  console.log("Checking for Bearby Wallet... Attempt", attempts);
 
-  if (attempts > 5) {
-      clearInterval(intervalId);  // Stop after 5 attempts
-      console.error("Bearby Wallet is not injected! Please install the extension.");
-      return false;
-    }
-  }, 1000);
-return false;
-}
 
-if (!checkWallet()) {
-  console.error("Wallet check failed.");
-}
-
-async function walletExample() {
-  const wallets = await getWallets();
-  if (wallets.length === 0) {
-      console.error("No wallets found");
-      return null;
-  }
-  const wallet = wallets[0];
-  // Connect to the wallet
-  const connected = await wallet.connect();
-  if (!connected) {
-    console.log("Failed to connect to wallet");
-    return null;
-  }
-  
-  // Listen for account changes
-  wallet.listenAccountChanges((address) => {
-    console.log("Account changed:", address);
-  });
-  return wallet;
-}
-walletExample().catch(console.error);
 function App() {
   const client = JsonRPCClient.buildnet();
 
-  const [token, setToken] = useState("0x1234567890abcdef1234567890abcdef12345678");  // Mock token address
+  const [token, setToken] = useState("0x1234567890abcdef1234567890abcdef12345678"); 
   const [amount, setAmount] = useState("");
   const [lockPeriod, setLockPeriod] = useState("");
   const [releaseInterval, setReleaseInterval] = useState("");
@@ -80,42 +29,14 @@ function App() {
     getReleaseSchedule();
     
   }, []);
-  async function connectWallet() {
-    if (!window.massa) {
-      console.error("Bearby Wallet is NOT injected!");
-      return;
-    }
   
-    try {
-      const account = await window.massa.connect();
-      console.log("Connected to Bearby Wallet:", account);
-      return account;
-    } catch (error) {
-      console.error("Failed to connect to Bearby Wallet:", error);
-    }
-  }
-  
+   
   async function createVestingSchedule() {
     console.log("Create Vesting Schedule clicked");
-    const connectedAccount = await connectWallet();
-    if (!connectedAccount) {
-      console.error("Failed to connect to Bearby Wallet");
-      return;
-    }
-    // Check if Bearby Wallet is injected
-    if (!window.massa) {
-      console.error("Bearby Wallet is NOT injected! Please install the wallet extension.");
-      return;
-    }
-  
-    // Check if Bearby Wallet is connected
-    if (!window.massa.isConnected) {
-      console.error("Bearby Wallet is not connected.");
-      return;
-    }
   
     try {
-      const provider = new JsonRpcProvider(window.massa, await window.massa.getProviderAccount());
+      const account = await Account.fromEnv();
+      const provider = JsonRpcProvider.buildnet(account);
   
       const contract = new SmartContract(provider, sc_addr);
       const mockTokenAddress = "0x1234567890abcdef1234567890abcdef12345678";
@@ -136,8 +57,6 @@ function App() {
       console.error("Error calling contract:", error);
     }
   }
-  
-
   
 
   async function getVestingInfo() {
@@ -168,10 +87,8 @@ function App() {
   async function getLockedAmount() {
     if (client) {
       const account = await Account.fromEnv();
-    const provider = JsonRpcProvider.buildnet(account);
-
-       
-    const contract = new SmartContract(provider, sc_addr);
+      const provider = JsonRpcProvider.buildnet(account);      
+      const contract = new SmartContract(provider, sc_addr);
       try {
         const data = await contract.call(sc_addr, new Args().addString('getLockedAmount'), { maxGas: BigInt(100000) });
         setLockedAmount(Number(data.toString()));
@@ -196,12 +113,13 @@ function App() {
       }
     }
   }
-
-  
+ 
 
   return (
     <div>
+
       <MassaLogo className="logo" size={100} />
+      <ConnectMassaWallet />
       <h2>Vesting Schedule</h2>
 
       <Input placeholder="Token Address" value={token} onChange={(e) => setToken(e.target.value)} />
@@ -228,5 +146,3 @@ function App() {
 }
 
 export default App;
-
-
