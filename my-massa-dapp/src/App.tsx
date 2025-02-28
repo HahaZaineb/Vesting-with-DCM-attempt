@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { MassaLogo, Button, Input, ConnectMassaWallet } from "@massalabs/react-ui-kit";
 import "./App.css";
 import "@massalabs/react-ui-kit/src/global.css";
-// import 'dotenv/config';
 
 const sc_addr = "AS1UGCZD9dQvjnMfwtYC8TBo1KTEhruQx3Xv5WQnNhKRt7wegZwj";
 
@@ -35,12 +34,18 @@ function App() {
     console.log("Create Vesting Schedule clicked");
   
     try {
-      const account = await Account.fromEnv();
-      const provider = JsonRpcProvider.buildnet(account);
+      const privateKey = import.meta.env.VITE_PRIVATE_KEY;
+      if (!privateKey) {
+        throw new Error("Private key is missing from environment variables.");
+      }
   
+      const account = await Account.fromPrivateKey(privateKey);
+      const provider = JsonRpcProvider.buildnet(account);
       const contract = new SmartContract(provider, sc_addr);
-      const mockTokenAddress = "0x1234567890abcdef1234567890abcdef12345678";
+      const mockTokenAddress = "0x1234567890abcdef1234567890abcdef12345678"; 
+      const beneficiaryAddress = "AU1264Bah4q6pYLrGBh27V1b9VXL2XmnQCwMhY74HW4dxahpqxkrN"; 
       const args = new Args()
+        .addString(beneficiaryAddress)
         .addString(mockTokenAddress)  
         .addU64(BigInt(amount))
         .addU64(BigInt(lockPeriod))
@@ -48,17 +53,16 @@ function App() {
         .addU64(BigInt(releasePercentage));
   
       const response = await contract.call("createVestingSchedule", args, {
-        maxGas: BigInt(2_000_000),
+        maxGas: BigInt(2100000),
       });
   
       console.log("Transaction response:", response);
-      getVestingInfo(); 
+      getVestingInfo();
     } catch (error) {
       console.error("Error calling contract:", error);
     }
   }
-  
-
+   
   async function getVestingInfo() {
     if (client) {
       try {
@@ -71,7 +75,8 @@ function App() {
   }
   async function getTotalVested() {
     if (client) {
-      const account = await Account.fromEnv();
+      const privateKey = import.meta.env.VITE_PRIVATE_KEY;
+      const account = await Account.fromPrivateKey(privateKey);
       const provider = JsonRpcProvider.buildnet(account);
 
        
@@ -86,7 +91,8 @@ function App() {
   }
   async function getLockedAmount() {
     if (client) {
-      const account = await Account.fromEnv();
+      const privateKey = import.meta.env.VITE_PRIVATE_KEY;
+      const account = await Account.fromPrivateKey(privateKey);
       const provider = JsonRpcProvider.buildnet(account);      
       const contract = new SmartContract(provider, sc_addr);
       try {
@@ -100,7 +106,8 @@ function App() {
 
   async function getReleaseSchedule() {
     if (client) {
-      const account = await Account.fromEnv();
+      const privateKey = import.meta.env.VITE_PRIVATE_KEY;
+      const account = await Account.fromPrivateKey(privateKey);
     const provider = JsonRpcProvider.buildnet(account);
 
        
