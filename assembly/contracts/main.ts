@@ -7,7 +7,7 @@ import {
   TASK_COUNT_KEY,
 } from '../internals';
 
-const VESTING_INFO_KEY = 'vestingInfo';
+const VESTING_INFO_KEY = stringToBytes('vestingInfo');
 
 // Export task function
 export { processTask } from '../internals';
@@ -61,7 +61,7 @@ export function constructor(binArgs: StaticArray<u8>): void {
   const period = args.nextU64().expect('Unable to decode period');
 
   Storage.set(TASK_COUNT_KEY, u64ToBytes(0));
-  registerCall(period);
+  //registerCall(period);
 }
 
 export function createVestingSchedule(binArgs: StaticArray<u8>): void {
@@ -86,7 +86,7 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
     releaseSchedule
   );
 
-  Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize().toString());
+  Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
 }
 
 
@@ -94,9 +94,9 @@ export function releaseVestedTokens(_: StaticArray<u8>): void {
   const data = Storage.get(VESTING_INFO_KEY);
   assert(data.length > 0, 'No vesting schedule found');
 
-  const storedData = Storage.get<StaticArray<u8>>(stringToBytes(VESTING_INFO_KEY));
+  const storedData = Storage.get<StaticArray<u8>>(VESTING_INFO_KEY);
   const vestingSchedule = new VestingSchedule();
-  vestingSchedule.deserialize(storedData);
+  //vestingSchedule.deserialize(storedData);
 
   assert(Context.currentPeriod() >= vestingSchedule.lockPeriod, 'Vesting period has not started');
   assert(vestingSchedule.amountClaimed < vestingSchedule.totalAmount, 'All tokens released');
@@ -112,7 +112,7 @@ export function releaseVestedTokens(_: StaticArray<u8>): void {
     vestingSchedule.releaseSchedule[2] = u64(parseInt(registerCall(vestingSchedule.releaseSchedule[1])));
   }
 
-  Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize().toString());
+  Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
 }
 
 export function getNextCallId(_: StaticArray<u8>): StaticArray<u8> {
@@ -130,7 +130,7 @@ export function getVestingSchedule(_: StaticArray<u8>): StaticArray<u8> {
   const data = Storage.get(VESTING_INFO_KEY);
   assert(data.length > 0, 'No vesting schedule found');
 
-  return stringToBytes(data);  
+  return data;  
 }
 
 export function getTotalVested(_: StaticArray<u8>): u64 {
@@ -138,19 +138,19 @@ export function getTotalVested(_: StaticArray<u8>): u64 {
   assert(data.length > 0, 'No vesting schedule found');
   
   const vestingSchedule = new VestingSchedule();
-  vestingSchedule.deserialize(stringToBytes(data));
+  //vestingSchedule.deserialize(data);
 
   return vestingSchedule.amountClaimed;  
 }
 
-export function getLockedAmount(_: StaticArray<u8>): u64 {
+export function getLockedAmount(_: StaticArray<u8>): StaticArray<u8>{
   const data = Storage.get(VESTING_INFO_KEY);
   assert(data.length > 0, 'No vesting schedule found');
 
   const vestingSchedule = new VestingSchedule();
-  vestingSchedule.deserialize(stringToBytes(data));
+  //vestingSchedule.deserialize(data);
 
-  return vestingSchedule.totalAmount - vestingSchedule.amountClaimed;  
+  return u64ToBytes(vestingSchedule.totalAmount - vestingSchedule.amountClaimed);  
 }
 
 
@@ -159,8 +159,7 @@ export function getReleaseSchedule(_: StaticArray<u8>): StaticArray<u64> {
   assert(data.length > 0, 'No vesting schedule found');
 
   const vestingSchedule = new VestingSchedule();
-  vestingSchedule.deserialize(stringToBytes(data));
+  //vestingSchedule.deserialize(data);
 
-  // Convert Array<u64> to StaticArray<u64>
   return StaticArray.fromArray(vestingSchedule.releaseSchedule);
 }
