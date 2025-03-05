@@ -74,7 +74,6 @@ function App() {
       }
   }
   
-  getVestingInfo();
   // Fetch Total Vested Tokens
   async function getTotalVested() {
     const contract = new SmartContract(connectedAccount as any, sc_addr);
@@ -94,7 +93,7 @@ function App() {
       }
     }
 
-getTotalVested();
+
 
   
   async function getLockedAmount() {
@@ -124,16 +123,13 @@ getTotalVested();
         console.log("Release Schedule:", decodedResult);
       } 
       
-        /*const resultStr = data.toString();
-        console.log("Raw release schedule data:", resultStr);
-        const schedule = JSON.parse(resultStr);
-        setReleaseSchedule(schedule);*/
+      
       catch (error) {
         console.error("Error fetching release schedule:", error);
       }
     }
   
-  getReleaseSchedule();
+  
 
   return (
     <div>

@@ -9,7 +9,7 @@ import {
 
 const VESTING_INFO_KEY = stringToBytes('vestingInfo');
 
-// Export task function
+
 export { processTask } from '../internals';
 
 class VestingSchedule implements Serializable {
@@ -30,7 +30,6 @@ class VestingSchedule implements Serializable {
       .add(this.amountClaimed)
       .add(this.lockPeriod)
       .add(this.releaseSchedule)
-
       .serialize();
   }
 

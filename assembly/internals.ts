@@ -37,7 +37,6 @@ export function registerCall(period: u64): string {
     slot,
     maxGas,
     new Args().add(period).serialize(),
-    // No need to provide coins as processTask is internal function
     0,
   );
 
