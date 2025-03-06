@@ -6,6 +6,7 @@ import {
   deferredCallRegister,
   findCheapestSlot,
   deferredCallCancel,
+  deferredCallExists
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -153,25 +154,33 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
     releaseArgs.length,
   );
   const callId = deferredCallRegister(
-    Context.callee().toString(),
-    'releaseVestedTokens',
-    releaseSlot,
-    100000,
-    releaseArgs,
-    0,
-  );
+  Context.callee().toString(),
+  'releaseVestedTokens',
+  releaseSlot,
+  100000,
+  releaseArgs,
+  1_000_000_000 // Provide 1 MAS for execution
+);
+
+  generateEvent(`Deferred call registered at slot ${releaseSlot} with ID: ${callId}`);
+  const callExists = deferredCallExists(callId);
+  generateEvent(`Deferred call registered? ${callExists}`);
 
   vestingSchedule.releaseSchedule[2] = u64(parseInt(callId));
 
   Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
 }
+
+
 export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
+  generateEvent('releaseVestedTokens function called');
+
   const args = new Args(binArgs);
   const beneficiary = new Address(
     args.nextString().expect('Missing beneficiary address')
   );
 
-  // Load schedule
+  // Load vesting schedule from storage
   let storedData = Storage.get(VESTING_INFO_KEY);
   if (storedData.length == 0) {
     generateEvent('No vesting schedule found');
@@ -180,44 +189,55 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
   let vestingSchedule = new VestingSchedule();
   vestingSchedule.deserialize(storedData);
 
-  // Check time
-  generateEvent(`Current period: ${Context.currentPeriod()}, Next release: ${vestingSchedule.releaseSchedule[0]}`);
+  // Debug current period and next release period
+  generateEvent(
+    `Current Period: ${Context.currentPeriod()}, Scheduled Release: ${vestingSchedule.releaseSchedule[0]}`
+  );
+
+  // Check if the release time has arrived
   if (Context.currentPeriod() < vestingSchedule.releaseSchedule[0]) {
     generateEvent('Not yet time for release');
     return;
   }
 
-  assert(
-    vestingSchedule.amountClaimed < vestingSchedule.totalAmount,
-    'All tokens released'
-  );
+  // Ensure tokens are still available for release
+  if (vestingSchedule.amountClaimed >= vestingSchedule.totalAmount) {
+    generateEvent('All tokens already released');
+    return;
+  }
 
-  // Calculate how many tokens to release
+  // Calculate the amount to release
   let amountToRelease = (vestingSchedule.totalAmount * vestingSchedule.releaseSchedule[1]) / 100;
-
-  // Ensure we don't exceed total allocation
   let remainingAmount = vestingSchedule.totalAmount - vestingSchedule.amountClaimed;
   if (amountToRelease > remainingAmount) {
     amountToRelease = remainingAmount;
   }
 
-  // Transfer
+  generateEvent(`Releasing ${amountToRelease} tokens to ${beneficiary.toString()}`);
+
+  // Ensure the contract has enough balance
   const tokenContract = new MRC20Wrapper(vestingSchedule.token);
+  const contractBalance = tokenContract.balanceOf(Context.callee());
+  generateEvent(`Contract balance: ${contractBalance.toU64()}`);
+
+  assert(contractBalance.toU64() >= amountToRelease, 'Contract does not have enough tokens');
+
+  // Transfer tokens to beneficiary
   tokenContract.transfer(
     vestingSchedule.beneficiary,
     u256.fromU64(amountToRelease)
   );
-  generateEvent(`Releasing ${amountToRelease} tokens to ${vestingSchedule.beneficiary.toString()}`);
 
-  // Update amount claimed
+  generateEvent(`Successfully transferred ${amountToRelease} tokens to ${vestingSchedule.beneficiary.toString()}`);
+
+  // Update vesting schedule
   vestingSchedule.amountClaimed += amountToRelease;
 
   // Schedule next release if tokens remain
   if (vestingSchedule.amountClaimed < vestingSchedule.totalAmount) {
-    // Update next release time
     vestingSchedule.releaseSchedule[0] = Context.currentPeriod() + vestingSchedule.releaseInterval;
 
-    // Book new call
+    // Register new deferred call
     const releaseArgs = new Args().add(beneficiary).serialize();
     const newCallSlot = findCheapestSlot(
       vestingSchedule.releaseSchedule[0],
@@ -234,17 +254,21 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
       0
     );
 
+    generateEvent(`New release scheduled at period ${vestingSchedule.releaseSchedule[0]}, Call ID: ${newCallId}`);
+
     // Store new call ID
     vestingSchedule.releaseSchedule[2] = u64(parseInt(newCallId));
 
   } else {
     // Cancel old call
+    generateEvent('Vesting completed, canceling scheduled release');
     deferredCallCancel(vestingSchedule.releaseSchedule[2].toString());
   }
 
-  // Save updated schedule
+  // Save updated vesting schedule
   Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
 }
+
 
 
 

@@ -19,7 +19,7 @@ import '@massalabs/react-ui-kit/src/global.css';
 
 
 
-const sc_addr = "AS12v1WwYk35DJ8fxxReX77Z65hsaTBHb1qnJsU96kLQMwAzB5LiC";
+const sc_addr = "AS18NC7n8m13HinT4L6YLFQai4nSFQuBU2hjSLP3u1moeu794pTH";
 
 
 function App() {
