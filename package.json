@@ -52,5 +52,9 @@
     "prettier": "@massalabs/prettier-config-as",
     "engines": {
         "node": ">=16"
+    },
+    "dependencies": {
+        "@massalabs/sc-standards": "^1.3.0",
+        "as-bignum": "^0.3.1"
     }
 }
