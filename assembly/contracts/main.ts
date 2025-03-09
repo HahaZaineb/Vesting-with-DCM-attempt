@@ -6,7 +6,8 @@ import {
   deferredCallRegister,
   findCheapestSlot,
   deferredCallCancel,
-  deferredCallExists
+  deferredCallExists,
+  Slot,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -14,6 +15,7 @@ import {
   u64ToBytes,
   Serializable,
   Result,
+  
 } from '@massalabs/as-types';
 import {
   cancelCall,
