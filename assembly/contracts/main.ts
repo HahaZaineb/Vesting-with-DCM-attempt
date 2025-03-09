@@ -6,8 +6,7 @@ import {
   deferredCallRegister,
   findCheapestSlot,
   deferredCallCancel,
-  deferredCallExists,
-  Slot,
+  deferredCallExists
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -15,7 +14,6 @@ import {
   u64ToBytes,
   Serializable,
   Result,
-  
 } from '@massalabs/as-types';
 import {
   cancelCall,
@@ -137,11 +135,11 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
 
   const releaseArgs = new Args().add(beneficiary).serialize();
 
-  const releaseSlot: Slot = {
-    period: Context.currentPeriod() + lockPeriod,
-    thread: 0,
-  };
-  
+  const releaseSlot = findCheapestSlot(startPeriod, 
+    startPeriod + 10, 
+    100000, 
+    releaseArgs.length);
+
   const callId = deferredCallRegister(
     Context.callee().toString(),
     'releaseVestedTokens',
