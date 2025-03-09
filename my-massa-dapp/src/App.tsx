@@ -19,7 +19,7 @@ import '@massalabs/react-ui-kit/src/global.css';
 
 
 
-const sc_addr = "AS18NC7n8m13HinT4L6YLFQai4nSFQuBU2hjSLP3u1moeu794pTH";
+const sc_addr = "AS197mFRqZvp1gAhujdkfnmUAHWVAQ3WLCtwy2ujcXGfU9YYaAHN";
 
 
 function App() {
@@ -82,12 +82,12 @@ function App() {
         .addString(beneficiaryAddress)
         .addString(token)
         .addU64(parseUnits(amount, 6))
-        .addU64(BigInt(releaseInterval))
-        .addU64(BigInt(releasePercentage))
-        .addU64(BigInt(lockPeriod));
+        .addU64(BigInt(lockPeriod))         
+        .addU64(BigInt(releaseInterval))     
+        .addU64(BigInt(releasePercentage)); 
 
       const response = await contract.call('createVestingSchedule', args, {
-        coins: Mas.fromString('0.01'),
+        coins: Mas.fromString('2'),
       });
 
       console.log('Transaction response:', response);

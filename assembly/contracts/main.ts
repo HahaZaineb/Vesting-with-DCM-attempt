@@ -35,9 +35,10 @@ class VestingSchedule implements Serializable {
     public token: Address = new Address(''),
     public totalAmount: u64 = 0,
     public amountClaimed: u64 = 0,
-    public lockPeriod: u64 = 0,
-    public releaseSchedule: Array<u64> = [],
-    public releaseInterval: u64 = 0,
+    public lockPeriod: u64 = 0, // Periods until first release
+    public releaseInterval: u64 = 0, // Periods between releases
+    public releasePercentage: u64 = 0, // Percentage per release (e.g., 20 for 20%)
+    public nextReleasePeriod: u64 = 0 // Next scheduled release period
   ) {}
 
   serialize(): StaticArray<u8> {
@@ -47,8 +48,9 @@ class VestingSchedule implements Serializable {
       .add(this.totalAmount)
       .add(this.amountClaimed)
       .add(this.lockPeriod)
-      .add(this.releaseSchedule)
       .add(this.releaseInterval)
+      .add(this.releasePercentage)
+      .add(this.nextReleasePeriod)
       .serialize();
   }
 
@@ -70,21 +72,15 @@ class VestingSchedule implements Serializable {
     this.lockPeriod = args
       .nextU64()
       .expect('Failed to deserialize lockPeriod.');
-      this.releaseInterval = args
+    this.releaseInterval = args
       .nextU64()
-      .expect('Failed to deserialize releaseInterval.'); 
-    const releaseScheduleStrings = args
-      .nextStringArray()
-      .expect('Failed to deserialize releaseSchedule.');
-    const releaseScheduleLength = args
-      .nextU32()
-      .expect('Failed to deserialize releaseSchedule length.');
-    this.releaseSchedule = new Array<u64>(releaseScheduleLength);
-    for (let i = 0; i < i32(releaseScheduleLength); i++) {
-      this.releaseSchedule[i] = args
-        .nextU64()
-        .expect(`Failed to deserialize releaseSchedule at index ${i}.`);
-    }
+      .expect('Failed to deserialize releaseInterval.');
+    this.releasePercentage = args
+      .nextU64()
+      .expect('Failed to deserialize releasePercentage.');
+    this.nextReleasePeriod = args
+      .nextU64()
+      .expect('Failed to deserialize nextReleasePeriod.');
 
     return new Result(args.offset);
   }
@@ -107,66 +103,59 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
   );
   const token = new Address(args.nextString().expect('Missing token address'));
   const totalAmount = args.nextU64().expect('Missing total amount');
+  const lockPeriod = args.nextU64().expect('Missing lock period');
   const releaseInterval = args.nextU64().expect('Missing release interval');
   const releasePercentage = args.nextU64().expect('Missing release percentage');
-  const startPeriod = Context.currentPeriod() + args.nextU64().expect('Missing lock period');
 
-  
+  const startPeriod = Context.currentPeriod() + lockPeriod;
   const vestingSchedule = new VestingSchedule(
     beneficiary,
     token,
     totalAmount,
     0,
-    startPeriod,
-    [startPeriod, releasePercentage, 0], // Fix order: [releaseTime, releasePercentage, callId]
-    releaseInterval
+    lockPeriod,
+    releaseInterval,
+    releasePercentage,
+    startPeriod 
   );
   
-
-
   const tokenContract = new MRC20Wrapper(token);
-
-  // Caller is the one that initializes the transaction
   const callerAddress = Context.caller();
-  // Callee is this smart contract
   const calleeAddress = Context.callee();
 
-  // Get allowance from user to this contract
   const allowance = tokenContract.allowance(callerAddress, calleeAddress);
-
-  // Make sure user has enough allowance
   assert(allowance.toU64() >= totalAmount, 'Insufficient allowance');
 
-  // Transfer tokens from user to this contract
   tokenContract.transferFrom(
-    callerAddress,
-    calleeAddress,
-    u256.fromU64(totalAmount),
-  );
+    callerAddress, 
+    calleeAddress, 
+    u256.fromU64(totalAmount));
+
   generateEvent(`Locking ${totalAmount} tokens for vesting`);
 
-  // Schedule first release
   const releaseArgs = new Args().add(beneficiary).serialize();
-  const releaseSlot = findCheapestSlot(
-    startPeriod,
-    startPeriod + 10,
-    100000,
-    releaseArgs.length,
-  );
+
+  const releaseSlot: Slot = {
+    period: Context.currentPeriod() + lockPeriod,
+    thread: 0,
+  };
+  
   const callId = deferredCallRegister(
-  Context.callee().toString(),
-  'releaseVestedTokens',
-  releaseSlot,
-  100000,
-  releaseArgs,
-  1_000_000_000 // Provide 1 MAS for execution
-);
+    Context.callee().toString(),
+    'releaseVestedTokens',
+    releaseSlot,
+      100000,
+      releaseArgs,
+      1_000_000_000
+    );
 
-  generateEvent(`Deferred call registered at slot ${releaseSlot} with ID: ${callId}`);
-  const callExists = deferredCallExists(callId);
-  generateEvent(`Deferred call registered? ${callExists}`);
+    const exists = deferredCallExists(callId);
 
-  vestingSchedule.releaseSchedule[2] = u64(parseInt(callId));
+  
+  generateEvent(`tanana: ${stringToBytes(exists ? "true" : "false")}`); 
+
+  generateEvent(`Deferred call registered with ID: ${callId}`);
+  vestingSchedule.nextReleasePeriod = releaseSlot.period; 
 
   Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
 }
@@ -176,11 +165,8 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
   generateEvent('releaseVestedTokens function called');
 
   const args = new Args(binArgs);
-  const beneficiary = new Address(
-    args.nextString().expect('Missing beneficiary address')
-  );
+  const providedBeneficiary = new Address(args.nextString().expect('Missing beneficiary address'));
 
-  // Load vesting schedule from storage
   let storedData = Storage.get(VESTING_INFO_KEY);
   if (storedData.length == 0) {
     generateEvent('No vesting schedule found');
@@ -188,85 +174,71 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
   }
   let vestingSchedule = new VestingSchedule();
   vestingSchedule.deserialize(storedData);
+  generateEvent(`Loaded vesting schedule: totalAmount=${vestingSchedule.totalAmount}, amountClaimed=${vestingSchedule.amountClaimed}`);
 
-  // Debug current period and next release period
-  generateEvent(
-    `Current Period: ${Context.currentPeriod()}, Scheduled Release: ${vestingSchedule.releaseSchedule[0]}`
-  );
+  if (!providedBeneficiary.equals(vestingSchedule.beneficiary)) {
+    generateEvent('Beneficiary mismatch');
+    return;
+  }
 
-  // Check if the release time has arrived
-  if (Context.currentPeriod() < vestingSchedule.releaseSchedule[0]) {
+  generateEvent(`Current Period: ${Context.currentPeriod()}, Next Release: ${vestingSchedule.nextReleasePeriod}`);
+  
+  if (Context.currentPeriod() < vestingSchedule.nextReleasePeriod) {
     generateEvent('Not yet time for release');
     return;
   }
 
-  // Ensure tokens are still available for release
   if (vestingSchedule.amountClaimed >= vestingSchedule.totalAmount) {
     generateEvent('All tokens already released');
     return;
   }
 
-  // Calculate the amount to release
-  let amountToRelease = (vestingSchedule.totalAmount * vestingSchedule.releaseSchedule[1]) / 100;
+  let amountToRelease = (vestingSchedule.totalAmount * vestingSchedule.releasePercentage) / 100;
   let remainingAmount = vestingSchedule.totalAmount - vestingSchedule.amountClaimed;
-  if (amountToRelease > remainingAmount) {
-    amountToRelease = remainingAmount;
-  }
+  if (amountToRelease > remainingAmount) {amountToRelease = remainingAmount;}
 
-  generateEvent(`Releasing ${amountToRelease} tokens to ${beneficiary.toString()}`);
+  generateEvent(`Releasing ${amountToRelease} tokens to ${vestingSchedule.beneficiary.toString()}`);
 
-  // Ensure the contract has enough balance
   const tokenContract = new MRC20Wrapper(vestingSchedule.token);
   const contractBalance = tokenContract.balanceOf(Context.callee());
   generateEvent(`Contract balance: ${contractBalance.toU64()}`);
+  assert(contractBalance.toU64() >= amountToRelease, 'Insufficient contract balance');
 
-  assert(contractBalance.toU64() >= amountToRelease, 'Contract does not have enough tokens');
-
-  // Transfer tokens to beneficiary
-  tokenContract.transfer(
-    vestingSchedule.beneficiary,
-    u256.fromU64(amountToRelease)
-  );
+  tokenContract.transfer(vestingSchedule.beneficiary, u256.fromU64(amountToRelease));
 
   generateEvent(`Successfully transferred ${amountToRelease} tokens to ${vestingSchedule.beneficiary.toString()}`);
 
-  // Update vesting schedule
   vestingSchedule.amountClaimed += amountToRelease;
+  generateEvent(`Updated amountClaimed: ${vestingSchedule.amountClaimed}`);
 
-  // Schedule next release if tokens remain
   if (vestingSchedule.amountClaimed < vestingSchedule.totalAmount) {
-    vestingSchedule.releaseSchedule[0] = Context.currentPeriod() + vestingSchedule.releaseInterval;
-
-    // Register new deferred call
-    const releaseArgs = new Args().add(beneficiary).serialize();
-    const newCallSlot = findCheapestSlot(
-      vestingSchedule.releaseSchedule[0],
-      vestingSchedule.releaseSchedule[0] + 10,
+    vestingSchedule.nextReleasePeriod = Context.currentPeriod() + vestingSchedule.releaseInterval;
+    
+    const releaseArgs = new Args().add(providedBeneficiary).serialize();
+    const newReleaseSlot = findCheapestSlot(
+      vestingSchedule.nextReleasePeriod,
+      vestingSchedule.nextReleasePeriod + 10,
       100000,
       releaseArgs.length
     );
+    
     const newCallId = deferredCallRegister(
       Context.callee().toString(),
       'releaseVestedTokens',
-      newCallSlot,
+      newReleaseSlot,
       100000,
       releaseArgs,
-      0
+      1_000_000_000
     );
-
-    generateEvent(`New release scheduled at period ${vestingSchedule.releaseSchedule[0]}, Call ID: ${newCallId}`);
-
-    // Store new call ID
-    vestingSchedule.releaseSchedule[2] = u64(parseInt(newCallId));
-
+    vestingSchedule.nextReleasePeriod = newReleaseSlot.period;
+    generateEvent(`New release scheduled at ${vestingSchedule.nextReleasePeriod}, Call ID: ${newCallId}`);
   } else {
-    // Cancel old call
-    generateEvent('Vesting completed, canceling scheduled release');
-    deferredCallCancel(vestingSchedule.releaseSchedule[2].toString());
+    generateEvent('Vesting completed');
   }
 
-  // Save updated vesting schedule
   Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
+  generateEvent('Updated vesting schedule stored');
+  
 }
 
 
@@ -311,7 +283,7 @@ export function getLockedAmount(_: StaticArray<u8>): StaticArray<u8> {
   );
 }
 
-export function getReleaseSchedule(_: StaticArray<u8>): StaticArray<u64> {
+/*export function getReleaseSchedule(_: StaticArray<u8>): StaticArray<u64> {
   const data = Storage.get(VESTING_INFO_KEY);
   assert(data.length > 0, 'No vesting schedule found');
 
@@ -319,4 +291,4 @@ export function getReleaseSchedule(_: StaticArray<u8>): StaticArray<u64> {
   vestingSchedule.deserialize(data);
 
   return StaticArray.fromArray(vestingSchedule.releaseSchedule);
-}
+}*/
