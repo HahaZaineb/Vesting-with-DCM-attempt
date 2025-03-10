@@ -19,7 +19,7 @@ import '@massalabs/react-ui-kit/src/global.css';
 
 
 
-const sc_addr = "AS197mFRqZvp1gAhujdkfnmUAHWVAQ3WLCtwy2ujcXGfU9YYaAHN";
+const sc_addr = "AS12N8cC8D6EMRpLUNVaAhpU7uW177daMhagfSFG35mceosA6YJuq";
 
 
 function App() {
@@ -51,6 +51,23 @@ function App() {
       console.error('No connected account');
       return;
     }
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      console.error('Invalid amount');
+      return;
+    }
+    if (!lockPeriod || isNaN(Number(lockPeriod)) || Number(lockPeriod) <= 0) {
+      console.error('Invalid lock period');
+      return;
+    }
+    if (!releaseInterval || isNaN(Number(releaseInterval)) || Number(releaseInterval) <= 0) {
+      console.error('Invalid release interval');
+      return;
+    }
+    if (!releasePercentage || isNaN(Number(releasePercentage)) || Number(releasePercentage) <= 0) {
+      console.error('Invalid release percentage');
+      return;
+    }
+    
 
     try {
       const tokenContract = new MRC20(connectedAccount, token);
@@ -113,21 +130,15 @@ function App() {
     }
   }
 
-     async function getVestingInfo() {
-      const contract = new SmartContract(connectedAccount as any, sc_addr);
-      try {
-          const result = await contract.read(
-              "getVestingSchedule", 
-              new Args(), 
-              { maxGas: BigInt(2100000),
-                coins: BigInt(0), } 
-          );
-  
-          const decodedResult = result.value; 
-          console.log("Vesting Info:", decodedResult);
-      } catch (error) {
-          console.error("Error fetching vesting info:", error);
-      }
+  async function getVestingInfo() {
+    const contract = new SmartContract(connectedAccount as any, sc_addr);
+    try {
+      const result = await contract.read("getVestingSchedule", new Args(), { maxGas: BigInt(2100000), coins: BigInt(0) });
+      const decodedResult = result.value; // Decode based on expected format
+      setVestingInfo(Number(decodedResult)); // Example decoding
+    } catch (error) {
+      console.error("Error fetching vesting info:", error);
+    }
   }
   
   // Fetch Total Vested Tokens
