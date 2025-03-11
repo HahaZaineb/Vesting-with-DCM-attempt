@@ -225,13 +225,3 @@ export function getLockedAmount(_: StaticArray<u8>): StaticArray<u8> {
     vestingSchedule.totalAmount - vestingSchedule.amountClaimed,
   );
 }
-
-/*export function getReleaseSchedule(_: StaticArray<u8>): StaticArray<u64> {
-  const data = Storage.get(VESTING_INFO_KEY);
-  assert(data.length > 0, 'No vesting schedule found');
-
-  const vestingSchedule = new VestingSchedule();
-  vestingSchedule.deserialize(data);
-
-  return StaticArray.fromArray(vestingSchedule.releaseSchedule);
-}*/
