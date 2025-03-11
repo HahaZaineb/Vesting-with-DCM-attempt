@@ -17,8 +17,6 @@ import {
 import './App.css';
 import '@massalabs/react-ui-kit/src/global.css';
 
-
-
 const sc_addr = "AS12N8cC8D6EMRpLUNVaAhpU7uW177daMhagfSFG35mceosA6YJuq";
 
 

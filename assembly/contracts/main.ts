@@ -69,6 +69,15 @@ class VestingSchedule implements Serializable {
     return new Result(args.offset);
   }
 }
+export function constructor(binArgs: StaticArray<u8>): void {
+  assert(Context.isDeployingContract());
+
+  const args = new Args(binArgs);
+  const period = args.nextU64().expect('Unable to decode period');
+
+  Storage.set(TASK_COUNT_KEY, u64ToBytes(0));
+  registerCall(period);
+}
 
 export function createVestingSchedule(binArgs: StaticArray<u8>): void {
   const args = new Args(binArgs);
@@ -80,7 +89,16 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
   const releasePercentage = args.nextU64().expect('Missing release percentage');
 
   const startPeriod = Context.currentPeriod() + lockPeriod;
-  const vestingSchedule = new VestingSchedule(beneficiary, token, totalAmount, 0, lockPeriod, releaseInterval, releasePercentage, startPeriod);
+  const vestingSchedule = new VestingSchedule(
+    beneficiary,
+     token, 
+     totalAmount, 
+     0, 
+     lockPeriod, 
+     releaseInterval, 
+     releasePercentage, 
+     startPeriod
+    );
   
   const tokenContract = new MRC20Wrapper(token);
   const callerAddress = Context.caller();
@@ -137,7 +155,6 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
   if (amountToRelease > remainingAmount) { amountToRelease = remainingAmount; }
 
   
-  
   const tokenContract = new MRC20Wrapper(vestingSchedule.token);
   tokenContract.transfer(vestingSchedule.beneficiary, u256.fromU64(amountToRelease));
   const contractBalanceAfter = tokenContract.balanceOf(Context.callee());
@@ -147,7 +164,7 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
 
   vestingSchedule.amountClaimed += amountToRelease;
   generateEvent(`Releasing ${amountToRelease} tokens to ${vestingSchedule.beneficiary.toString()}`);
-  
+
   if (vestingSchedule.amountClaimed < vestingSchedule.totalAmount) {
     vestingSchedule.nextReleasePeriod = Context.currentPeriod() + vestingSchedule.releaseInterval;
     const releaseArgs = new Args().add(providedBeneficiary).serialize();
@@ -169,10 +186,6 @@ export function releaseVestedTokens(binArgs: StaticArray<u8>): void {
   }
   Storage.set(VESTING_INFO_KEY, vestingSchedule.serialize());
 }
-
-
-
-
 
 export function getNextCallId(_: StaticArray<u8>): StaticArray<u8> {
   assert(Storage.has(NEXT_CALL_ID_KEY), 'No deferred call planned');
