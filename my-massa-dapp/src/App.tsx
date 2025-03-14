@@ -17,11 +17,13 @@ import {
 import './App.css';
 import '@massalabs/react-ui-kit/src/global.css';
 
-const sc_addr = "AS12N8cC8D6EMRpLUNVaAhpU7uW177daMhagfSFG35mceosA6YJuq";
+
+
+const sc_addr = "AS1R5bmQreNPY2vJf3DcuHGywdUeFpuPCHvWupzaHuC98EKiukyw";
 
 
 function App() {
-  const {connectedAccount} = useAccountStore();  
+  const [beneficiary, setBeneficiary] = useState('AU1264Bah4q6pYLrGBh27V1b9VXL2XmnQCwMhY74HW4dxahpqxkrN');  
 
   const [token, setToken] = useState(
     'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ',
@@ -35,6 +37,7 @@ function App() {
   const [lockedAmount, setLockedAmount] = useState(0);
   const [releaseSchedule, setReleaseSchedule] = useState<any[]>([]);
   const [deferredCallId, setDeferredCallId] = useState<string | null>(null);
+  const { connectedAccount } = useAccountStore();
 
   useEffect(() => {
     getVestingInfo();
@@ -49,23 +52,6 @@ function App() {
       console.error('No connected account');
       return;
     }
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      console.error('Invalid amount');
-      return;
-    }
-    if (!lockPeriod || isNaN(Number(lockPeriod)) || Number(lockPeriod) <= 0) {
-      console.error('Invalid lock period');
-      return;
-    }
-    if (!releaseInterval || isNaN(Number(releaseInterval)) || Number(releaseInterval) <= 0) {
-      console.error('Invalid release interval');
-      return;
-    }
-    if (!releasePercentage || isNaN(Number(releasePercentage)) || Number(releasePercentage) <= 0) {
-      console.error('Invalid release percentage');
-      return;
-    }
-    
 
     try {
       const tokenContract = new MRC20(connectedAccount, token);
@@ -91,10 +77,9 @@ function App() {
       }
 
       const contract = new SmartContract(connectedAccount as any, sc_addr);
-      const beneficiaryAddress =
-        'AU1264Bah4q6pYLrGBh27V1b9VXL2XmnQCwMhY74HW4dxahpqxkrN';
+     // const beneficiaryAddress = connectedAccount.address;
       const args = new Args()
-        .addString(beneficiaryAddress)
+        .addString(beneficiary)
         .addString(token)
         .addU64(parseUnits(amount, 6))
         .addU64(BigInt(lockPeriod))         
@@ -102,7 +87,7 @@ function App() {
         .addU64(BigInt(releasePercentage)); 
 
       const response = await contract.call('createVestingSchedule', args, {
-        coins: Mas.fromString('2'),
+        coins: Mas.fromString('0'),
       });
 
       console.log('Transaction response:', response);
@@ -128,15 +113,21 @@ function App() {
     }
   }
 
-  async function getVestingInfo() {
-    const contract = new SmartContract(connectedAccount as any, sc_addr);
-    try {
-      const result = await contract.read("getVestingSchedule", new Args(), { maxGas: BigInt(2100000), coins: BigInt(0) });
-      const decodedResult = result.value; // Decode based on expected format
-      setVestingInfo(Number(decodedResult)); // Example decoding
-    } catch (error) {
-      console.error("Error fetching vesting info:", error);
-    }
+     async function getVestingInfo() {
+      const contract = new SmartContract(connectedAccount as any, sc_addr);
+      try {
+          const result = await contract.read(
+              "getVestingSchedule", 
+              new Args(), 
+              { maxGas: BigInt(2100000),
+                coins: BigInt(0), } 
+          );
+  
+          const decodedResult = result.value; 
+          console.log("Vesting Info:", decodedResult);
+      } catch (error) {
+          console.error("Error fetching vesting info:", error);
+      }
   }
   
   // Fetch Total Vested Tokens
@@ -198,7 +189,7 @@ function App() {
       <MassaLogo className="logo" size={100} />
       <ConnectMassaWallet />
       <h2>Vesting Schedule</h2>
-      
+      <Input placeholder="Beneficiary Address" value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} />
       <Input placeholder="Token Address" value={token} onChange={(e) => setToken(e.target.value)} />
       <Input placeholder="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
       <Input placeholder="Lock Period (seconds)" type="number" value={lockPeriod} onChange={(e) => setLockPeriod(e.target.value)} />
