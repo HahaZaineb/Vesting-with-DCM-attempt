@@ -9,7 +9,7 @@ const provider = Web3Provider.buildnet(account);
 console.log('getting events');
 
 const events = await provider.getEvents({
-  smartContractAddress: "AS12LvuD6SsxotULzu3LmR4fW5gmqESJABLrfhbcTvn8itFZdRBeM",
+  smartContractAddress: "AS12gqgHdGxAft1hBwqxHy7UqRpzrCuiotTJsf5qgJehjHXDJynBw",
 });
 
 for (const event of events) {

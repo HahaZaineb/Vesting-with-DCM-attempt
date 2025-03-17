@@ -1,9 +1,11 @@
 import {
   Account,
   EventPoller,
-  SCEvent,
+ 
   Web3Provider,
 } from '@massalabs/massa-web3';
+import { SCOutputEvent } from '@massalabs/massa-web3/dist/esm/generated/client-types';
+
 import { scheduler } from 'timers/promises';
 import { CONTRACT_ADDR } from './utils';
 
@@ -13,7 +15,7 @@ const provider = Web3Provider.buildnet(account);
 
 let stop = false;
 
-const onData = async (events: SCEvent[]) => {
+const onData = async (events: SCOutputEvent[]) => {
   for (const event of events) {
     console.log(
       `Event period: ${event.context.slot.period} thread: ${event.context.slot.thread} -`,
