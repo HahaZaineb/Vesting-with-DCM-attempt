@@ -94,8 +94,6 @@ export function createVestingSchedule(binArgs: StaticArray<u8>): void {
   const lockPeriod = args.nextU64().expect('Missing lock period');
   const releaseInterval = args.nextU64().expect('Missing release interval');
   const releasePercentage = args.nextU64().expect('Missing release percentage');
-
-  
  
   assert(totalAmount > 0, "Total amount must be greater than 0");
   assert(releasePercentage > 0 && releasePercentage <= 100, "Release percentage must be between 1 and 100");
